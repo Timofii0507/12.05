@@ -1,4 +1,6 @@
 ﻿using Data;
+using Microsoft.Data.SqlClient;
+using System.Data;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -14,49 +16,67 @@ namespace _30._04
 {
     public partial class MainWindow : Window
     {
-        DBManager dBManager;
+        private string connectionString;
+        private SqlConnection connection;
+
         public MainWindow()
         {
             InitializeComponent();
-            dBManager = new DBManager();
         }
 
-        private void Button_Click(object sender, RoutedEventArgs e)
+        private void BtnConnect_Click(object sender, RoutedEventArgs e)
         {
+            connectionString = tbConnectionString.Text;
 
             try
             {
-                if (dBManager.ConnectionString == null)
-                {
-                    throw new Exception("Connection String is Null");
-                }
-                if (dBManager.ConnectToDB())
-                {
-                    if (tbQuery.Text.ToLower().StartsWith("select"))
-                    {
-                        var reader = dBManager.SelectFromDb(tbQuery.Text);
-                        if (reader != null)
-                        {
-                            dgMain.ItemsSource = reader;
-                            UpdateLayout();
-                        }
-                    }
-                    else
-                    {
-                        int result = dBManager.CreateOrInsertOrDelete(tbQuery.Text);
-                        MessageBox.Show(result.ToString(), "Result", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                }
+                connection = new SqlConnection(connectionString);
+                connection.Open();
+
+                tbStatus.Text = "Connection successful!";
+                btnConnect.Visibility = Visibility.Collapsed;
+                btnDisconnect.Visibility = Visibility.Visible;
+
+                DisplayData();
             }
-            catch (Exception error)
+            catch (Exception ex)
             {
-                MessageBox.Show(error.Message, "System Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Error connecting to the database: " + ex.Message);
             }
         }
 
-        private void tbConString_TextChanged(object sender, TextChangedEventArgs e)
+        private void BtnDisconnect_Click(object sender, RoutedEventArgs e)
         {
-            dBManager.ConnectionString = tbConString.Text;
+            try
+            {
+                connection.Close();
+                connection.Dispose();
+
+                tbStatus.Text = "Disconnected from the database.";
+                btnConnect.Visibility = Visibility.Visible;
+                btnDisconnect.Visibility = Visibility.Collapsed;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error disconnecting from the database: " + ex.Message);
+            }
+        }
+
+        private void DisplayData()
+        {
+            try
+            {
+                string query = "SELECT * FROM Students";
+                SqlDataAdapter adapter = new SqlDataAdapter(query, connection);
+                DataTable dataTable = new DataTable();
+                adapter.Fill(dataTable);
+
+                dgData.ItemsSource = dataTable.DefaultView;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error displaying data: " + ex.Message);
+            }
         }
     }
 }
